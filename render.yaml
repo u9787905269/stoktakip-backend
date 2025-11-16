@@ -35,5 +35,4 @@ databases:
   - name: stoktakip_db
     databaseName: stoktakip
     user: stoktakip_user
-    plan: starter
     region: frankfurt
