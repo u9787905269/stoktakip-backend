@@ -16,13 +16,15 @@ WORKDIR /app
 
 # Create non-root user
 RUN addgroup -S spring && adduser -S spring -G spring
+
+# Create logs directory before switching user
+RUN mkdir -p logs && chown spring:spring logs
+
+# Switch to non-root user
 USER spring:spring
 
 # Copy jar from build stage
 COPY --from=build /app/target/*.jar app.jar
-
-# Create logs directory
-RUN mkdir -p logs && chown spring:spring logs
 
 # Expose port
 EXPOSE 8080
