@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: stoktakip-postgres
+    environment:
+      POSTGRES_DB: ${STKTK_DB_NAME:-stoktakip}
+      POSTGRES_USER: ${STKTK_DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${STKTK_DB_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STKTK_DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stoktakip-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stoktakip-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      STKTK_DB_URL: jdbc:postgresql://postgres:5432/${STKTK_DB_NAME:-stoktakip}
+      STKTK_DB_USERNAME: ${STKTK_DB_USERNAME:-postgres}
+      STKTK_DB_PASSWORD: ${STKTK_DB_PASSWORD:-postgres}
+      PORT: 8080
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./src/main/resources/static/barcodes:/app/static/barcodes
+    networks:
+      - stoktakip-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  stoktakip-network:
+    driver: bridge
+

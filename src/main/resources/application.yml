@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: stoktakip-backend
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration
+  datasource:
+    url: ${STKTK_DB_URL:jdbc:postgresql://localhost:5432/stoktakip}
+    username: ${STKTK_DB_USERNAME:postgres}
+    password: ${STKTK_DB_PASSWORD:12345}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+  
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        'format_sql': true
+    open-in-view: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    'org.springframework.security': INFO
+
+# CORS Configuration
+cors:
+  allowed:
+    origins: http://localhost:3000,http://127.0.0.1:3000,http://localhost:1212
+

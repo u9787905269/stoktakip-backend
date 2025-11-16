@@ -1,0 +1,39 @@
+services:
+  # Backend Service
+  - type: web
+    name: stoktakip-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: frankfurt
+    plan: starter
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: PORT
+        value: 8080
+      - key: DDL_AUTO
+        value: update
+        # İlk deploy için 'update', sonra 'validate' olarak değiştirin
+      - key: STKTK_DB_URL
+        fromDatabase:
+          name: stoktakip_db
+          property: connectionString
+      - key: STKTK_DB_USERNAME
+        fromDatabase:
+          name: stoktakip_db
+          property: user
+      - key: STKTK_DB_PASSWORD
+        fromDatabase:
+          name: stoktakip_db
+          property: password
+      - key: FRONTEND_URL
+        # Deploy sonrası Render Dashboard'dan gerçek frontend URL'ini alıp buraya güncelleyin
+        value: https://stoktakip-frontend.onrender.com
+
+databases:
+  # PostgreSQL Database
+  - name: stoktakip_db
+    databaseName: stoktakip
+    user: stoktakip_user
+    plan: starter
+    region: frankfurt
