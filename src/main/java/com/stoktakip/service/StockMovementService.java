@@ -144,29 +144,66 @@ public class StockMovementService {
 
     @Transactional(readOnly = true)
     public List<StockMovementResponse> findRecentMovements(int limit) {
-        int size = Math.max(1, Math.min(limit, 50));
-        return stockMovementRepository.findAllByOrderByMovementDateDesc(PageRequest.of(0, size))
-            .stream()
-            .map(this::toResponse)
-            .toList();
+        try {
+            int size = Math.max(1, Math.min(limit, 50));
+            List<StockMovement> movements = stockMovementRepository.findAllByOrderByMovementDateDesc(PageRequest.of(0, size));
+            if (movements == null || movements.isEmpty()) {
+                return new java.util.ArrayList<>();
+            }
+            return movements.stream()
+                .map(movement -> {
+                    // Lazy loading trigger
+                    try {
+                        if (movement.getProduct() != null) {
+                            movement.getProduct().getId(); // Trigger lazy load
+                        }
+                    } catch (Exception e) {
+                        log.warn("Error loading product for movement id={}: {}", movement.getId(), e.getMessage());
+                    }
+                    try {
+                        if (movement.getWarehouse() != null) {
+                            movement.getWarehouse().getId(); // Trigger lazy load
+                        }
+                    } catch (Exception e) {
+                        log.warn("Error loading warehouse for movement id={}: {}", movement.getId(), e.getMessage());
+                    }
+                    return toResponse(movement);
+                })
+                .toList();
+        } catch (Exception e) {
+            log.error("Error finding recent movements: {}", e.getMessage(), e);
+            return new java.util.ArrayList<>();
+        }
     }
 
     private StockMovementResponse toResponse(StockMovement movement) {
+        if (movement == null) {
+            return null;
+        }
         StockMovementResponse response = new StockMovementResponse();
         response.setId(movement.getId());
         response.setType(movement.getType());
-        response.setQuantity(movement.getQuantity());
+        response.setQuantity(movement.getQuantity() != null ? movement.getQuantity() : 0);
         response.setMovementDate(movement.getMovementDate());
         response.setNote(movement.getNote());
         if (movement.getProduct() != null) {
-            response.setProductId(movement.getProduct().getId());
-            response.setProductName(movement.getProduct().getName());
+            try {
+                response.setProductId(movement.getProduct().getId());
+                response.setProductName(movement.getProduct().getName() != null ? movement.getProduct().getName() : movement.getProductNameSnapshot());
+            } catch (Exception e) {
+                log.warn("Error accessing product for movement id={}: {}", movement.getId(), e.getMessage());
+                response.setProductName(movement.getProductNameSnapshot());
+            }
         } else {
             response.setProductName(movement.getProductNameSnapshot());
         }
         if (movement.getWarehouse() != null) {
-            response.setWarehouseId(movement.getWarehouse().getId());
-            response.setWarehouseName(movement.getWarehouse().getName());
+            try {
+                response.setWarehouseId(movement.getWarehouse().getId());
+                response.setWarehouseName(movement.getWarehouse().getName() != null ? movement.getWarehouse().getName() : null);
+            } catch (Exception e) {
+                log.warn("Error accessing warehouse for movement id={}: {}", movement.getId(), e.getMessage());
+            }
         }
         return response;
     }

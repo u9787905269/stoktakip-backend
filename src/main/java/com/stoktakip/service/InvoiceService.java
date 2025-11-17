@@ -74,26 +74,47 @@ public class InvoiceService {
                 return new java.util.ArrayList<>();
             }
             return invoices.stream()
-                .map(this::toResponse)
-                .toList();
-        } catch (Exception e) {
-            // Eğer JOIN FETCH ile sorun olursa, normal findAll kullan
-            List<Invoice> invoices = invoiceRepository.findAll();
-            return invoices.stream()
-                .sorted((a, b) -> {
-                    if (a.getInvoiceDate() == null && b.getInvoiceDate() == null) return 0;
-                    if (a.getInvoiceDate() == null) return 1;
-                    if (b.getInvoiceDate() == null) return -1;
-                    return b.getInvoiceDate().compareTo(a.getInvoiceDate());
-                })
                 .map(inv -> {
-                    // Items'ı yükle
-                    if (inv.getItems() != null) {
-                        inv.getItems().size(); // Lazy load trigger
+                    try {
+                        // Items'ı yükle
+                        if (inv.getItems() != null) {
+                            inv.getItems().size(); // Lazy load trigger
+                        }
+                    } catch (Exception e) {
+                        // Ignore lazy loading errors
                     }
                     return this.toResponse(inv);
                 })
                 .toList();
+        } catch (Exception e) {
+            // Eğer JOIN FETCH ile sorun olursa, normal findAll kullan
+            try {
+                List<Invoice> invoices = invoiceRepository.findAll();
+                if (invoices == null || invoices.isEmpty()) {
+                    return new java.util.ArrayList<>();
+                }
+                return invoices.stream()
+                    .sorted((a, b) -> {
+                        if (a.getInvoiceDate() == null && b.getInvoiceDate() == null) return 0;
+                        if (a.getInvoiceDate() == null) return 1;
+                        if (b.getInvoiceDate() == null) return -1;
+                        return b.getInvoiceDate().compareTo(a.getInvoiceDate());
+                    })
+                    .map(inv -> {
+                        try {
+                            // Items'ı yükle
+                            if (inv.getItems() != null) {
+                                inv.getItems().size(); // Lazy load trigger
+                            }
+                        } catch (Exception ex) {
+                            // Ignore lazy loading errors
+                        }
+                        return this.toResponse(inv);
+                    })
+                    .toList();
+            } catch (Exception ex) {
+                return new java.util.ArrayList<>();
+            }
         }
     }
 
