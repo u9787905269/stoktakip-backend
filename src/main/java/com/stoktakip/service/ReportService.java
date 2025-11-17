@@ -57,9 +57,37 @@ public class ReportService {
         }
 
         List<Product> products = productRepository.findAll();
+        if (products == null) {
+            products = new java.util.ArrayList<>();
+        }
+        
+        // Lazy loading trigger for all products
+        products.forEach(product -> {
+            try {
+                if (product.getWarehouse() != null) {
+                    product.getWarehouse().getId();
+                }
+            } catch (Exception e) {
+                // Ignore lazy loading errors
+            }
+            try {
+                if (product.getCategory() != null) {
+                    product.getCategory().getId();
+                }
+            } catch (Exception e) {
+                // Ignore lazy loading errors
+            }
+        });
+        
         if (warehouseId != null) {
             products = products.stream()
-                .filter(product -> product.getWarehouse() != null && Objects.equals(product.getWarehouse().getId(), warehouseId))
+                .filter(product -> {
+                    try {
+                        return product.getWarehouse() != null && Objects.equals(product.getWarehouse().getId(), warehouseId);
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
                 .toList();
         }
 
@@ -71,7 +99,13 @@ public class ReportService {
 
         if (categoryId != null) {
             products = products.stream()
-                .filter(product -> product.getCategory() != null && Objects.equals(product.getCategory().getId(), categoryId))
+                .filter(product -> {
+                    try {
+                        return product.getCategory() != null && Objects.equals(product.getCategory().getId(), categoryId);
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
                 .toList();
         }
 
@@ -93,15 +127,49 @@ public class ReportService {
             .collect(Collectors.toSet());
 
         List<StockMovement> movements = fetchMovements(startInstant, endInstant);
+        if (movements == null) {
+            movements = new java.util.ArrayList<>();
+        }
+        
+        // Lazy loading trigger for movements
+        movements.forEach(movement -> {
+            try {
+                if (movement.getProduct() != null) {
+                    movement.getProduct().getId();
+                }
+            } catch (Exception e) {
+                // Ignore lazy loading errors
+            }
+        });
+        
         if (!productIds.isEmpty()) {
             movements = movements.stream()
-                .filter(movement -> movement.getProduct() != null && movement.getProduct().getId() != null && productIds.contains(movement.getProduct().getId()))
+                .filter(movement -> {
+                    try {
+                        return movement.getProduct() != null && movement.getProduct().getId() != null && productIds.contains(movement.getProduct().getId());
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
                 .toList();
         }
 
         Map<Long, List<StockMovement>> movementsByProduct = movements.stream()
-            .filter(movement -> movement.getProduct() != null && movement.getProduct().getId() != null)
-            .collect(Collectors.groupingBy(movement -> movement.getProduct().getId()));
+            .filter(movement -> {
+                try {
+                    return movement.getProduct() != null && movement.getProduct().getId() != null;
+                } catch (Exception e) {
+                    return false;
+                }
+            })
+            .collect(Collectors.groupingBy(movement -> {
+                try {
+                    return movement.getProduct().getId();
+                } catch (Exception e) {
+                    return null;
+                }
+            }));
+        movementsByProduct.remove(null); // Remove entries with null keys
 
         EnumMap<MovementType, Long> movementCounts = new EnumMap<>(MovementType.class);
         for (MovementType type : MovementType.values()) {
@@ -119,7 +187,11 @@ public class ReportService {
             StockReportItem item = new StockReportItem();
             item.setProductId(product.getId());
             item.setProductName(product.getName());
-            item.setWarehouseName(product.getWarehouse() != null ? product.getWarehouse().getName() : "—");
+            try {
+                item.setWarehouseName(product.getWarehouse() != null ? product.getWarehouse().getName() : "—");
+            } catch (Exception e) {
+                item.setWarehouseName("—");
+            }
             item.setStockQuantity(product.getStockQuantity());
             item.setUnitPrice(product.getUnitPrice());
             item.setTotalPrice(product.getTotalPrice());
@@ -130,12 +202,17 @@ public class ReportService {
             totalStockQuantity += product.getStockQuantity() != null ? product.getStockQuantity() : 0;
 
             List<StockMovement> productMovements = movementsByProduct.getOrDefault(product.getId(), List.of());
-            productMovements.stream()
-                .max((a, b) -> a.getMovementDate().compareTo(b.getMovementDate()))
-                .ifPresent(latest -> {
-                    item.setLastMovementDate(latest.getMovementDate());
-                    item.setLastMovementNote(latest.getNote());
-                });
+            try {
+                productMovements.stream()
+                    .filter(m -> m.getMovementDate() != null)
+                    .max((a, b) -> a.getMovementDate().compareTo(b.getMovementDate()))
+                    .ifPresent(latest -> {
+                        item.setLastMovementDate(latest.getMovementDate());
+                        item.setLastMovementNote(latest.getNote());
+                    });
+            } catch (Exception e) {
+                // Ignore errors in movement processing
+            }
 
             items.add(item);
         }

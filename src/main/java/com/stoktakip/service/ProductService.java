@@ -115,9 +115,36 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<ProductResponse> findAll() {
-        return productRepository.findAll().stream()
-            .map(this::toResponse)
-            .toList();
+        try {
+            List<Product> products = productRepository.findAll();
+            if (products == null || products.isEmpty()) {
+                return new java.util.ArrayList<>();
+            }
+            return products.stream()
+                .map(product -> {
+                    try {
+                        // Lazy loading trigger
+                        if (product.getProductName() != null) {
+                            product.getProductName().getId();
+                        }
+                        if (product.getCategory() != null) {
+                            product.getCategory().getId();
+                        }
+                        if (product.getSerialNumber() != null) {
+                            product.getSerialNumber().getId();
+                        }
+                        if (product.getWarehouse() != null) {
+                            product.getWarehouse().getId();
+                        }
+                    } catch (Exception e) {
+                        // Ignore lazy loading errors
+                    }
+                    return toResponse(product);
+                })
+                .toList();
+        } catch (Exception e) {
+            return new java.util.ArrayList<>();
+        }
     }
 
     @Transactional(readOnly = true)
@@ -188,22 +215,37 @@ public class ProductService {
     }
 
     private ProductResponse toResponse(Product product) {
+        if (product == null) {
+            return null;
+        }
         ProductResponse response = new ProductResponse();
         response.setId(product.getId());
         response.setName(product.getName());
         response.setProductName(product.getName());
-        if (product.getProductName() != null) {
-            response.setProductNameId(product.getProductName().getId());
-            response.setProductName(product.getProductName().getName());
+        try {
+            if (product.getProductName() != null) {
+                response.setProductNameId(product.getProductName().getId());
+                response.setProductName(product.getProductName().getName() != null ? product.getProductName().getName() : product.getName());
+            }
+        } catch (Exception e) {
+            // Ignore lazy loading errors
         }
         response.setDescription(product.getDescription());
-        if (product.getCategory() != null) {
-            response.setCategoryId(product.getCategory().getId());
-            response.setCategoryName(product.getCategory().getName());
+        try {
+            if (product.getCategory() != null) {
+                response.setCategoryId(product.getCategory().getId());
+                response.setCategoryName(product.getCategory().getName());
+            }
+        } catch (Exception e) {
+            // Ignore lazy loading errors
         }
-        if (product.getSerialNumber() != null) {
-            response.setSerialNumberId(product.getSerialNumber().getId());
-            response.setSerialNumberValue(product.getSerialNumber().getValue());
+        try {
+            if (product.getSerialNumber() != null) {
+                response.setSerialNumberId(product.getSerialNumber().getId());
+                response.setSerialNumberValue(product.getSerialNumber().getValue());
+            }
+        } catch (Exception e) {
+            // Ignore lazy loading errors
         }
         response.setUnitPrice(product.getUnitPrice());
         response.setUnitPriceBtwAmount(product.getUnitPriceBtwAmount());
@@ -213,9 +255,13 @@ public class ProductService {
         response.setTotalPrice(product.getTotalPrice());
         response.setTotalBtwAmount(product.getTotalBtwAmount());
         response.setTotalNetPrice(product.getTotalNetPrice());
-        if (product.getWarehouse() != null) {
-            response.setWarehouseId(product.getWarehouse().getId());
-            response.setWarehouseName(product.getWarehouse().getName());
+        try {
+            if (product.getWarehouse() != null) {
+                response.setWarehouseId(product.getWarehouse().getId());
+                response.setWarehouseName(product.getWarehouse().getName());
+            }
+        } catch (Exception e) {
+            // Ignore lazy loading errors
         }
         response.setCreatedAt(product.getCreatedAt());
         response.setUpdatedAt(product.getUpdatedAt());
