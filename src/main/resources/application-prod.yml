@@ -18,14 +18,18 @@ spring:
       max-lifetime: 1800000
   jpa:
     hibernate:
-      # İlk deploy için 'update', sonra 'validate' olarak değiştirin
-      ddl-auto: ${DDL_AUTO:validate}
+      ddl-auto: validate
     properties:
       hibernate:
         'format_sql': false
         dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
     open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
   jackson:
     serialization:
       write-dates-as-timestamps: false
