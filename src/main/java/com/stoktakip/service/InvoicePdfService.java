@@ -14,6 +14,7 @@ import com.itextpdf.text.pdf.PdfWriter;
 import com.stoktakip.model.Invoice;
 import com.stoktakip.model.InvoiceItem;
 import com.stoktakip.model.InvoiceTemplate;
+import com.stoktakip.util.InvoiceTranslations;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -32,7 +33,7 @@ public class InvoicePdfService {
         this.invoiceTemplateService = invoiceTemplateService;
     }
 
-    public byte[] generatePdf(Long invoiceId, Long templateId) throws DocumentException {
+    public byte[] generatePdf(Long invoiceId, String locale, Long templateId) throws DocumentException {
         Invoice invoice = invoiceService.findEntityById(invoiceId)
             .orElseThrow(() -> new IllegalArgumentException("Fatura bulunamadı"));
         
@@ -62,7 +63,7 @@ public class InvoicePdfService {
             }
         }
         
-        Paragraph title = new Paragraph("FATURA", titleFont);
+        Paragraph title = new Paragraph(InvoiceTranslations.translate(locale, "invoice_title"), titleFont);
         title.setAlignment(Element.ALIGN_CENTER);
         title.setSpacingAfter(20);
         document.add(title);
@@ -72,29 +73,29 @@ public class InvoicePdfService {
         Font infoValueFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
         
         // Fatura No
-        Phrase invoiceNoPhrase = new Phrase("Fatura No: ", infoLabelFont);
+        Phrase invoiceNoPhrase = new Phrase(InvoiceTranslations.translate(locale, "invoice_number"), infoLabelFont);
         invoiceNoPhrase.add(new Phrase(invoice.getInvoiceNumber() != null ? invoice.getInvoiceNumber() : "-", infoValueFont));
         Paragraph invoiceNoPara = new Paragraph(invoiceNoPhrase);
         invoiceNoPara.setSpacingAfter(15);
         document.add(invoiceNoPara);
         
         // Fatura Tarihi
-        Phrase invoiceDatePhrase = new Phrase("Fatura Tarihi: ", infoLabelFont);
+        Phrase invoiceDatePhrase = new Phrase(InvoiceTranslations.translate(locale, "invoice_date"), infoLabelFont);
         invoiceDatePhrase.add(new Phrase(formatDate(invoice.getInvoiceDate()), infoValueFont));
         Paragraph invoiceDatePara = new Paragraph(invoiceDatePhrase);
         invoiceDatePara.setSpacingAfter(15);
         document.add(invoiceDatePara);
         
         // Vade Tarihi
-        Phrase dueDatePhrase = new Phrase("Vade Tarihi: ", infoLabelFont);
+        Phrase dueDatePhrase = new Phrase(InvoiceTranslations.translate(locale, "due_date"), infoLabelFont);
         dueDatePhrase.add(new Phrase(formatDate(invoice.getDueDate()), infoValueFont));
         Paragraph dueDatePara = new Paragraph(dueDatePhrase);
         dueDatePara.setSpacingAfter(15);
         document.add(dueDatePara);
         
         // Durum
-        Phrase statusPhrase = new Phrase("Durum: ", infoLabelFont);
-        statusPhrase.add(new Phrase(invoice.getStatus() != null ? invoice.getStatus() : "-", infoValueFont));
+        Phrase statusPhrase = new Phrase(InvoiceTranslations.translate(locale, "status"), infoLabelFont);
+        statusPhrase.add(new Phrase(invoice.getStatus() != null ? InvoiceTranslations.translateStatus(locale, invoice.getStatus()) : "-", infoValueFont));
         Paragraph statusPara = new Paragraph(statusPhrase);
         statusPara.setSpacingAfter(15);
         document.add(statusPara);
@@ -111,7 +112,7 @@ public class InvoicePdfService {
         sellerCell.setVerticalAlignment(Element.ALIGN_TOP);
         sellerCell.setPadding(5);
         
-        Paragraph sellerTitle = new Paragraph("SATICI", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14));
+        Paragraph sellerTitle = new Paragraph(InvoiceTranslations.translate(locale, "seller"), FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14));
         sellerTitle.setAlignment(Element.ALIGN_LEFT);
         sellerCell.addElement(sellerTitle);
         
@@ -126,7 +127,7 @@ public class InvoicePdfService {
             sellerCell.addElement(p);
         }
         if (invoice.getSellerTaxNumber() != null) {
-            Paragraph p = new Paragraph(invoice.getSellerTaxNumber());
+            Paragraph p = new Paragraph(InvoiceTranslations.translate(locale, "tax_number") + invoice.getSellerTaxNumber());
             p.setAlignment(Element.ALIGN_LEFT);
             sellerCell.addElement(p);
         }
@@ -138,7 +139,7 @@ public class InvoicePdfService {
         customerCell.setVerticalAlignment(Element.ALIGN_TOP);
         customerCell.setPadding(5);
         
-        Paragraph customerTitle = new Paragraph("ALICI", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14));
+        Paragraph customerTitle = new Paragraph(InvoiceTranslations.translate(locale, "customer"), FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14));
         customerTitle.setAlignment(Element.ALIGN_RIGHT);
         customerCell.addElement(customerTitle);
         
@@ -153,7 +154,7 @@ public class InvoicePdfService {
             customerCell.addElement(p);
         }
         if (invoice.getCustomerTaxNumber() != null) {
-            Paragraph p = new Paragraph(invoice.getCustomerTaxNumber());
+            Paragraph p = new Paragraph(InvoiceTranslations.translate(locale, "tax_number") + invoice.getCustomerTaxNumber());
             p.setAlignment(Element.ALIGN_RIGHT);
             customerCell.addElement(p);
         }
@@ -171,14 +172,14 @@ public class InvoicePdfService {
         itemsTable.setWidths(columnWidths);
 
         // Başlık satırı
-        addHeaderCell(itemsTable, "Sıra", template);
-        addHeaderCell(itemsTable, "Ürün Adı", template);
-        addHeaderCell(itemsTable, "Ürün Kodu", template);
-        addHeaderCell(itemsTable, "Miktar", template);
-        addHeaderCell(itemsTable, "Birim Fiyat", template);
-        addHeaderCell(itemsTable, "KDV %", template);
-        addHeaderCell(itemsTable, "KDV Tutarı", template);
-        addHeaderCell(itemsTable, "Toplam", template);
+        addHeaderCell(itemsTable, InvoiceTranslations.translate(locale, "row"), template);
+        addHeaderCell(itemsTable, InvoiceTranslations.translate(locale, "product_name"), template);
+        addHeaderCell(itemsTable, InvoiceTranslations.translate(locale, "product_code"), template);
+        addHeaderCell(itemsTable, InvoiceTranslations.translate(locale, "quantity"), template);
+        addHeaderCell(itemsTable, InvoiceTranslations.translate(locale, "unit_price"), template);
+        addHeaderCell(itemsTable, InvoiceTranslations.translate(locale, "tax_rate"), template);
+        addHeaderCell(itemsTable, InvoiceTranslations.translate(locale, "tax_amount"), template);
+        addHeaderCell(itemsTable, InvoiceTranslations.translate(locale, "total"), template);
 
         // İçerik satırları
         List<InvoiceItem> items = invoice.getItems();
@@ -201,11 +202,11 @@ public class InvoicePdfService {
         totalsTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
         totalsTable.setSpacingAfter(20);
 
-        addTotalRow(totalsTable, "Ara Toplam:", formatCurrency(invoice.getSubtotal()), template);
+        addTotalRow(totalsTable, InvoiceTranslations.translate(locale, "subtotal"), formatCurrency(invoice.getSubtotal()), template);
         if (invoice.getDiscountAmount() != null && invoice.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
-            addTotalRow(totalsTable, "İndirim:", formatCurrency(invoice.getDiscountAmount()), template);
+            addTotalRow(totalsTable, InvoiceTranslations.translate(locale, "discount"), formatCurrency(invoice.getDiscountAmount()), template);
         }
-        addTotalRow(totalsTable, "KDV Toplamı:", formatCurrency(invoice.getTaxAmount()), template);
+        addTotalRow(totalsTable, InvoiceTranslations.translate(locale, "tax_total"), formatCurrency(invoice.getTaxAmount()), template);
         
         Font totalFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
         if (template != null && template.getPrimaryColor() != null) {
@@ -216,13 +217,13 @@ public class InvoicePdfService {
                 // Renk parse edilemezse varsayılan kullan
             }
         }
-        addTotalRow(totalsTable, "GENEL TOPLAM:", formatCurrency(invoice.getTotalAmount()), template, totalFont);
+        addTotalRow(totalsTable, InvoiceTranslations.translate(locale, "grand_total"), formatCurrency(invoice.getTotalAmount()), template, totalFont);
 
         document.add(totalsTable);
 
         // Notlar
         if (invoice.getNotes() != null && !invoice.getNotes().isBlank()) {
-            Paragraph notes = new Paragraph("Notlar: " + invoice.getNotes());
+            Paragraph notes = new Paragraph(InvoiceTranslations.translate(locale, "notes") + invoice.getNotes());
             notes.setSpacingAfter(10);
             document.add(notes);
         }

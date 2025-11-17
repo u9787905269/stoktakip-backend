@@ -80,10 +80,11 @@ public class InvoiceController {
     @GetMapping("/{id}/pdf")
     public void exportPdf(
         @PathVariable Long id,
+        @RequestParam(required = false, defaultValue = "tr") String locale,
         @RequestParam(required = false) Long templateId,
         HttpServletResponse response
     ) throws IOException, DocumentException {
-        byte[] pdfBytes = invoicePdfService.generatePdf(id, templateId);
+        byte[] pdfBytes = invoicePdfService.generatePdf(id, locale, templateId);
         
         response.setContentType(MediaType.APPLICATION_PDF_VALUE);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice-" + id + ".pdf");
@@ -95,9 +96,10 @@ public class InvoiceController {
     @GetMapping("/{id}/excel")
     public void exportExcel(
         @PathVariable Long id,
+        @RequestParam(required = false, defaultValue = "tr") String locale,
         HttpServletResponse response
     ) throws IOException {
-        byte[] excelBytes = invoiceExcelService.generateExcel(id);
+        byte[] excelBytes = invoiceExcelService.generateExcel(id, locale);
         
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=invoice-" + id + ".xlsx");

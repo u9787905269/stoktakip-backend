@@ -2,6 +2,7 @@ package com.stoktakip.service;
 
 import com.stoktakip.model.Invoice;
 import com.stoktakip.model.InvoiceItem;
+import com.stoktakip.util.InvoiceTranslations;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -27,19 +28,19 @@ public class InvoiceExcelService {
         this.invoiceService = invoiceService;
     }
 
-    public byte[] generateExcel(Long invoiceId) throws IOException {
+    public byte[] generateExcel(Long invoiceId, String locale) throws IOException {
         Invoice invoice = invoiceService.findEntityById(invoiceId)
             .orElseThrow(() -> new IllegalArgumentException("Fatura bulunamadı"));
 
         Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Fatura");
+        Sheet sheet = workbook.createSheet(InvoiceTranslations.translate(locale, "invoice_title"));
 
         int rowNum = 0;
 
         // Başlık
         Row titleRow = sheet.createRow(rowNum++);
         Cell titleCell = titleRow.createCell(0);
-        titleCell.setCellValue("FATURA");
+        titleCell.setCellValue(InvoiceTranslations.translate(locale, "invoice_title"));
         Font titleFont = workbook.createFont();
         titleFont.setBold(true);
         titleFont.setFontHeightInPoints((short) 18);
@@ -51,19 +52,20 @@ public class InvoiceExcelService {
 
         // Fatura Bilgileri
         rowNum++;
-        createInfoRow(sheet, rowNum++, "Fatura No:", invoice.getInvoiceNumber());
-        createInfoRow(sheet, rowNum++, "Fatura Tarihi:", 
+        createInfoRow(sheet, rowNum++, InvoiceTranslations.translate(locale, "invoice_number"), invoice.getInvoiceNumber());
+        createInfoRow(sheet, rowNum++, InvoiceTranslations.translate(locale, "invoice_date"), 
             invoice.getInvoiceDate() != null ? invoice.getInvoiceDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "-");
-        createInfoRow(sheet, rowNum++, "Vade Tarihi:", 
+        createInfoRow(sheet, rowNum++, InvoiceTranslations.translate(locale, "due_date"), 
             invoice.getDueDate() != null ? invoice.getDueDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "-");
-        createInfoRow(sheet, rowNum++, "Durum:", invoice.getStatus());
+        createInfoRow(sheet, rowNum++, InvoiceTranslations.translate(locale, "status"), 
+            invoice.getStatus() != null ? InvoiceTranslations.translateStatus(locale, invoice.getStatus()) : "-");
 
         rowNum++;
 
         // Satıcı ve Müşteri Bilgileri
         Row sellerRow = sheet.createRow(rowNum++);
         Cell sellerLabel = sellerRow.createCell(0);
-        sellerLabel.setCellValue("SATICI");
+        sellerLabel.setCellValue(InvoiceTranslations.translate(locale, "seller"));
         Font sellerFont = workbook.createFont();
         sellerFont.setBold(true);
         sellerFont.setFontHeightInPoints((short) 12);
@@ -73,7 +75,7 @@ public class InvoiceExcelService {
 
         if (invoice.getSellerName() != null) createInfoRow(sheet, rowNum++, null, invoice.getSellerName());
         if (invoice.getSellerAddress() != null) createInfoRow(sheet, rowNum++, null, invoice.getSellerAddress());
-        if (invoice.getSellerTaxNumber() != null) createInfoRow(sheet, rowNum++, null, "Vergi No: " + invoice.getSellerTaxNumber());
+        if (invoice.getSellerTaxNumber() != null) createInfoRow(sheet, rowNum++, null, InvoiceTranslations.translate(locale, "tax_number") + invoice.getSellerTaxNumber());
         if (invoice.getSellerPhone() != null) createInfoRow(sheet, rowNum++, null, "Tel: " + invoice.getSellerPhone());
         if (invoice.getSellerEmail() != null) createInfoRow(sheet, rowNum++, null, "Email: " + invoice.getSellerEmail());
 
@@ -81,7 +83,7 @@ public class InvoiceExcelService {
 
         Row customerRow = sheet.createRow(rowNum++);
         Cell customerLabel = customerRow.createCell(4);
-        customerLabel.setCellValue("MÜŞTERİ");
+        customerLabel.setCellValue(InvoiceTranslations.translate(locale, "customer"));
         Font customerFont = workbook.createFont();
         customerFont.setBold(true);
         customerFont.setFontHeightInPoints((short) 12);
@@ -102,7 +104,7 @@ public class InvoiceExcelService {
         if (invoice.getCustomerTaxNumber() != null) {
             Row row = sheet.createRow(rowNum++);
             Cell cell = row.createCell(4);
-            cell.setCellValue("Vergi No: " + invoice.getCustomerTaxNumber());
+            cell.setCellValue(InvoiceTranslations.translate(locale, "tax_number") + invoice.getCustomerTaxNumber());
         }
         if (invoice.getCustomerPhone() != null) {
             Row row = sheet.createRow(rowNum++);
@@ -119,7 +121,16 @@ public class InvoiceExcelService {
 
         // Fatura Kalemleri Başlığı
         Row headerRow = sheet.createRow(rowNum++);
-        String[] headers = {"Sıra", "Ürün Adı", "Ürün Kodu", "Miktar", "Birim Fiyat", "KDV %", "KDV Tutarı", "Toplam"};
+        String[] headers = {
+            InvoiceTranslations.translate(locale, "row"),
+            InvoiceTranslations.translate(locale, "product_name"),
+            InvoiceTranslations.translate(locale, "product_code"),
+            InvoiceTranslations.translate(locale, "quantity"),
+            InvoiceTranslations.translate(locale, "unit_price"),
+            InvoiceTranslations.translate(locale, "tax_rate"),
+            InvoiceTranslations.translate(locale, "tax_amount"),
+            InvoiceTranslations.translate(locale, "total")
+        };
         CellStyle headerStyle = workbook.createCellStyle();
         headerStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte) 200, (byte) 200, (byte) 200}, null));
         headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -172,11 +183,11 @@ public class InvoiceExcelService {
         totalValueFont.setBold(true);
         totalValueStyle.setFont(totalValueFont);
 
-        createTotalRow(sheet, rowNum++, "Ara Toplam:", invoice.getSubtotal(), totalLabelStyle, totalValueStyle);
+        createTotalRow(sheet, rowNum++, InvoiceTranslations.translate(locale, "subtotal"), invoice.getSubtotal(), totalLabelStyle, totalValueStyle);
         if (invoice.getDiscountAmount() != null && invoice.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
-            createTotalRow(sheet, rowNum++, "İndirim:", invoice.getDiscountAmount(), totalLabelStyle, totalValueStyle);
+            createTotalRow(sheet, rowNum++, InvoiceTranslations.translate(locale, "discount"), invoice.getDiscountAmount(), totalLabelStyle, totalValueStyle);
         }
-        createTotalRow(sheet, rowNum++, "KDV Toplamı:", invoice.getTaxAmount(), totalLabelStyle, totalValueStyle);
+        createTotalRow(sheet, rowNum++, InvoiceTranslations.translate(locale, "tax_total"), invoice.getTaxAmount(), totalLabelStyle, totalValueStyle);
         
         CellStyle grandTotalStyle = workbook.createCellStyle();
         grandTotalStyle.setAlignment(HorizontalAlignment.RIGHT);
@@ -187,14 +198,14 @@ public class InvoiceExcelService {
         grandTotalFont.setColor(new XSSFColor(new byte[]{(byte) 0, (byte) 0, (byte) 255}, null).getIndex());
         grandTotalStyle.setFont(grandTotalFont);
         
-        createTotalRow(sheet, rowNum++, "GENEL TOPLAM:", invoice.getTotalAmount(), totalLabelStyle, grandTotalStyle);
+        createTotalRow(sheet, rowNum++, InvoiceTranslations.translate(locale, "grand_total"), invoice.getTotalAmount(), totalLabelStyle, grandTotalStyle);
 
         // Notlar
         if (invoice.getNotes() != null && !invoice.getNotes().isBlank()) {
             rowNum++;
             Row notesRow = sheet.createRow(rowNum++);
             Cell notesCell = notesRow.createCell(0);
-            notesCell.setCellValue("Notlar: " + invoice.getNotes());
+            notesCell.setCellValue(InvoiceTranslations.translate(locale, "notes") + invoice.getNotes());
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowNum - 1, rowNum - 1, 0, 7));
         }
 
@@ -203,7 +214,7 @@ public class InvoiceExcelService {
             rowNum++;
             Row termsRow = sheet.createRow(rowNum++);
             Cell termsCell = termsRow.createCell(0);
-            termsCell.setCellValue("Şartlar: " + invoice.getTerms());
+            termsCell.setCellValue(InvoiceTranslations.translate(locale, "terms") + invoice.getTerms());
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(rowNum - 1, rowNum - 1, 0, 7));
         }
 
